@@ -1,23 +1,31 @@
-import logo from './logo.svg';
-import './App.css';
+import { VStack } from "@chakra-ui/react";
+import "./app.css";
+import { Routes, Route } from "react-router-dom";
+import PublicHeader from "./components/PublicHeader";
+import Footer from "./components/Footer";
+import PublicLayout from "./components/PublicLayout";
+import PostsList from "./components/PostsList";
+import SinglePost from "./components/SinglePost";
+import CategoryPosts from "./components/CategoryPosts";
+import DashboardLayout from "./components/DashboardLayout";
 
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <VStack
+        maxWidth={{ base: "100%", "2xl": "80%" }}
+        justifyContent="space-between"
+        h="100vh"
+      >
+        <Routes>
+          <Route path="/" element={<PublicLayout />}>
+            <Route path="/" element={<PostsList />} />
+            <Route path="/posts/:id" element={<SinglePost />} />
+            <Route path="/category/:name" element={<CategoryPosts />} />
+          </Route>
+          <Route path="/dashboard" element={<DashboardLayout />}></Route>
+        </Routes>
+      </VStack>
     </div>
   );
 }
