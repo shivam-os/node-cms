@@ -8,6 +8,9 @@ import PostsList from "./components/PostsList";
 import SinglePost from "./components/SinglePost";
 import CategoryPosts from "./components/CategoryPosts";
 import DashboardLayout from "./components/DashboardLayout";
+import Login from "./components/Login";
+import Register from "./components/Register"
+
 
 function App() {
   return (
@@ -20,6 +23,8 @@ function App() {
         <Routes>
           <Route path="/" element={<PublicLayout />}>
             <Route path="/" element={<PostsList />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/admin" element={<Register />} />
             <Route path="/posts/:id" element={<SinglePost />} />
             <Route path="/category/:name" element={<CategoryPosts />} />
           </Route>

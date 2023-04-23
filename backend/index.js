@@ -2,6 +2,9 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const morgan = require("morgan");
+const userRoutes = require("./routes/userRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
+const postRoutes = require("./routes/postRoutes");
 require("./config/db")
 const PORT = 3003;
 
@@ -11,9 +14,9 @@ app.use(morgan("dev"));
 app.use(cors());
 
 //App routes
-app.use("/api/users");
-app.use("/api/posts");
-app.use("/api/categories");
+app.use("/api/users", userRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/categories", categoryRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port: ${PORT}`);
