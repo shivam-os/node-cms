@@ -13,6 +13,7 @@ const checkCategory = async (name) => {
 //GET method to return all the categories
 exports.getAllCategories = (req, res) => {
   try {
+    
   } catch (err) {
     res
       .status(500)
