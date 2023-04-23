@@ -1,4 +1,4 @@
-const { Sequelize, DataTypes } = require("sequelize");
+const { Sequelize, DataTypes, Op } = require("sequelize");
 require("dotenv").config();
 
 //Create connection to the database using given credentials
@@ -31,7 +31,7 @@ const db = {
 //Sync all the tables with the database
 const syncAllTables = async () => {
   try {
-    await db.sequelize.sync({ alter: true });
+    await db.sequelize.sync();
     console.log("All the tables are synced syccessfully.");
   } catch (err) {
     console.log("Error in syncing the table:", err);
@@ -49,5 +49,25 @@ db.category = require("../models/category")(sequelize, DataTypes);
 db.role.hasMany(db.user, { foreignKey: "roleId" });
 db.user.hasMany(db.post, { foreignKey: "userId" });
 db.category.hasMany(db.post, { foreignKey: "categoryId" });
+
+//Create roles
+const createRoles = async () => {
+  try {
+    //Count the role ids
+    const roleCount = await db.role.count();
+    console.log("count", roleCount);
+
+    if (roleCount === 0) {
+      await db.role.create({ name: "author" });
+      //Create admin role
+      await db.role.create({ name: "editor" });
+      //Create super role
+      await db.role.create({ name: "admin" });
+    }
+  } catch (err) {
+    console.log("Error in inserting the data into role table", err);
+  }
+};
+createRoles();
 
 module.exports = db;
