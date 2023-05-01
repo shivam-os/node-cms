@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const handleErrors = require("../utils/validators/handleErrors");
 const User = require("../config/db").user;
 const roleConstants = require("../utils/roleConstants");
+const httpResponses = require("../utils/httpResponses");
 
 const ifUserExists = async (field) => {
   try {
@@ -42,15 +43,13 @@ exports.registerAdmin = async (req, res) => {
   //Handle errors coming from createUser validator
   handleErrors(req, res);
   try {
-    const { name, email, password } = req.body;
-
     //Check if an admin already exists
     const adminExists = await User.findOne({
       where: { roleId: roleConstants.ADMIN },
     });
     if (adminExists) {
       return res
-        .status(401)
+        .status(403)
         .json({ err: "Admin cannot be created as there already exists one." });
     }
 
@@ -59,9 +58,8 @@ exports.registerAdmin = async (req, res) => {
 
     await createUser(req, res);
   } catch (err) {
-    return res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    httpResponses.serverError(res)
   }
 };
 
@@ -108,9 +106,8 @@ exports.login = async (req, res) => {
       roleId: user.dataValues.roleId,
     });
   } catch (err) {
-    res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    httpResponses.serverError(res);
   }
 };
 
@@ -128,9 +125,8 @@ exports.createUser = async (req, res) => {
 
     await createUser(req, res);
   } catch (err) {
-    res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    httpResponses.serverError(res);
   }
 };
 
@@ -142,9 +138,8 @@ exports.getAllUsers = async (req, res) => {
     });
     return res.status(200).json({ userData });
   } catch (err) {
-    res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    httpResponses.serverError(res);
   }
 };
 
@@ -152,9 +147,7 @@ exports.getAllUsers = async (req, res) => {
 exports.getSingleUser = async (req, res) => {
   try {
     if (!(await ifUserExists(req.body.userId))) {
-      return res.status(404).json({
-        err: "User with given userId does not exist. Try again after checking it!",
-      });
+      httpResponses.notFoundError(res, "User")
     }
 
     const userData = await User.findAll(
@@ -165,9 +158,8 @@ exports.getSingleUser = async (req, res) => {
     );
     return res.status(200).json({ userData });
   } catch (err) {
-    res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    httpResponses.serverError(res);
   }
 };
 
@@ -179,9 +171,7 @@ exports.updateUser = async (req, res) => {
     const { name, email, password, roleId } = req.body;
 
     if (!(await ifUserExists(req.body.userId))) {
-      return res.status(404).json({
-        err: "User with given userId does not exist. Try again after checking it!",
-      });
+      httpResponses.notFoundError(res, "User");
     }
 
     //Update the user
@@ -190,9 +180,8 @@ exports.updateUser = async (req, res) => {
       { where: { userId: req.params.userId } }
     );
   } catch (err) {
-    res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    httpResponses.serverError(res);
   }
 };
 
@@ -201,9 +190,7 @@ exports.deleteUser = async (req, res) => {
   try {
     //Check if user with given userId exists
     if (!(await ifUserExists(req.params.userId))) {
-      return res.status(404).json({
-        err: "User with given userId does not exist. Try again after checking it!",
-      });
+      httpResponses.notFoundError(res, "User")
     }
 
     //Delete the user
@@ -213,8 +200,7 @@ exports.deleteUser = async (req, res) => {
       .status(200)
       .json({ msg: "User with given userId deleted successfully!" });
   } catch (err) {
-    res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    httpResponses.serverError(res);
   }
 };
