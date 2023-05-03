@@ -6,11 +6,6 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
     },
 
-    userId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-
     title: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -18,11 +13,6 @@ module.exports = (sequelize, DataTypes) => {
 
     content: {
       type: DataTypes.TEXT("long"),
-      allowNull: false,
-    },
-
-    categoryId: {
-      type: DataTypes.INTEGER,
       allowNull: false,
     },
   });

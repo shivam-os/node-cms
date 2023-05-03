@@ -1,4 +1,4 @@
-const { Sequelize, DataTypes, Op } = require("sequelize");
+const { Sequelize, DataTypes } = require("sequelize");
 require("dotenv").config();
 
 //Create connection to the database using given credentials
@@ -46,9 +46,9 @@ db.post = require("../models/post")(sequelize, DataTypes);
 db.category = require("../models/category")(sequelize, DataTypes);
 
 //Create associations between the models
-db.role.hasMany(db.user, { foreignKey: "roleId" });
-db.user.hasMany(db.post, { foreignKey: "userId" });
-db.category.hasMany(db.post, { foreignKey: "categoryId" });
+db.user.belongsTo(db.role, { foreignKey: "roleId" });
+db.post.belongsTo(db.user, { foreignKey: "userId" });
+db.post.belongsTo(db.category, { foreignKey: "categoryId" });
 
 //Create roles
 const createRoles = async () => {

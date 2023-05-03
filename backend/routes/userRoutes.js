@@ -4,7 +4,7 @@ const userController = require("../controllers/userController");
 const userValidator = require("../utils/validators/userValidator");
 
 //POST request to register an admin
-router.post("/admin", userValidator.createUser, userController.registerAdmin);
+router.post("/admin", userValidator.createAdmin, userController.registerAdmin);
 
 //POST request to login all users
 router.post("/login", userValidator.login, userController.login);
@@ -16,12 +16,12 @@ router.post("/", userValidator.createUser, userController.createUser);
 router.get("/", userController.getAllUsers);
 
 //GET request to get detauls of a single user
-router.get("/:userId", userController.getSingleUser);
+router.get("/:id", userController.getSingleUser);
 
 //PUT request to update a user with given userId
-router.put("/:userId", userController.updateUser)
+router.put("/:id", userValidator.createUser, userController.updateUser)
 
 //DELETE request to delete user with given userId
-router.delete("/:userId", userController.deleteUser)
+router.delete("/:id", userController.deleteUser)
 
 module.exports = router;

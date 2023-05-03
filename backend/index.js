@@ -2,10 +2,12 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const morgan = require("morgan");
+const passport = require("passport");
+require("./config/passport")(passport);
 const userRoutes = require("./routes/userRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const postRoutes = require("./routes/postRoutes");
-require("./config/db")
+require("./config/db");
 const PORT = 3003;
 
 //Required Middlewares

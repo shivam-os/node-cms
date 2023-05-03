@@ -1,5 +1,7 @@
 const handleErrors = require("../utils/validators/handleErrors");
 const Category = require("../config/db").category;
+const Post = require("../config/db").post;
+const User = require("../config/db").user;
 const httpResponses = require("../utils/httpResponses");
 const responseObj = "Category";
 
@@ -20,18 +22,54 @@ exports.getAllCategories = async (req, res) => {
       attributes: ["categoryId", "name"],
     });
 
-    //If no category exists
-    if (categories.length === 0) {
-      return res
-        .status(404)
-        .json({ msg: "No category exists! Create one and try again." });
-    }
-
     return res.status(200).json({ categories });
   } catch (err) {
     res
       .status(500)
       .json({ err: "Something has went wrong. Please try again later." });
+  }
+};
+
+//GET method to return details about given category
+exports.getSingleCategory = async (req, res) => {
+  try {
+    const existingCategory = await Category.findOne({
+      where: { categoryId: req.params.id },
+    });
+
+    //If category with given id doesn't exist
+    if (!existingCategory) {
+      return httpResponses.notFoundError(res, responseObj);
+    }
+
+    return res.status(200).json({ category: existingCategory });
+  } catch (err) {
+    console.log(err);
+    return httpResponses.serverError(res);
+  }
+};
+
+//GET method to return posts with given category id
+exports.getCategoryPosts = async (req, res) => {
+  try {
+    const existingCategory = await Category.findOne({
+      where: { categoryId: req.params.id },
+    });
+
+    //If category with given id does not exist
+    if (!existingCategory) {
+      return httpResponses.notFoundError(res, responseObj);
+    }
+
+    const posts = await Post.findAll({
+      where: { categoryId: req.params.id },
+      attributes: ["postId", "title", "content", "updatedAt"],
+      include: [{ model: User, attributes: ["name"] }],
+    });
+    return res.status(200).json({ posts });
+  } catch (err) {
+    console.log(err);
+    return httpResponses.serverError(res);
   }
 };
 

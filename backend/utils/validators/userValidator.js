@@ -1,8 +1,8 @@
 const { body } = require("express-validator");
+const roleConstants = require("../roleConstants");
 
-//Validator for registering a new user
-exports.createUser = [
-  body("name")
+const nameChain = () => {
+  return body("name")
     .trim()
     .not()
     .isEmpty()
@@ -14,18 +14,22 @@ exports.createUser = [
     .isAlpha("en-US", { ignore: " " })
     .withMessage(
       "Name field cannot contain any numbers or special characters!"
-    ),
+    );
+};
 
-  body("email")
+const emailChain = () => {
+  return body("email")
     .trim()
     .not()
     .isEmpty()
     .withMessage("Email field cannot be empty!")
     .normalizeEmail()
     .isEmail()
-    .withMessage("Invalid email address!"),
+    .withMessage("Invalid email address!");
+};
 
-  body("password")
+const passwordChain = () => {
+  return body("password")
     .trim()
     .not()
     .isEmpty()
@@ -33,19 +37,31 @@ exports.createUser = [
     .isStrongPassword()
     .withMessage(
       "Password must be atleast 8 characters long & must include- one uppercase letter, one lowercase letter, one special character, one digit!"
-    ),
+    );
+};
+
+//Validator for registering an admin
+exports.createAdmin = [nameChain(), emailChain(), passwordChain()];
+
+//Validator for registering a new user
+exports.createUser = [
+  nameChain(),
+
+  emailChain(),
+
+  passwordChain(),
+
+  body("roleId")
+    .trim()
+    .not()
+    .isEmpty()
+    .withMessage("Role id field cannot be empty!")
+    .isIn([roleConstants.AUTHOR, roleConstants.EDITOR]),
 ];
 
 //Validator for login of an existing user
 exports.login = [
-  body("email")
-    .trim()
-    .not()
-    .isEmpty()
-    .withMessage("Email field cannot be empty!")
-    .normalizeEmail()
-    .isEmail()
-    .withMessage("Invalid email address!"),
+  emailChain(),
 
   body("password")
     .trim()

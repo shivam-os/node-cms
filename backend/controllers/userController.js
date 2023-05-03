@@ -1,9 +1,11 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { validationResult } = require("express-validator");
 const handleErrors = require("../utils/validators/handleErrors");
 const User = require("../config/db").user;
 const roleConstants = require("../utils/roleConstants");
 const httpResponses = require("../utils/httpResponses");
+const responseObj = "User";
 
 const ifUserExists = async (field) => {
   try {
@@ -19,17 +21,6 @@ const ifUserExists = async (field) => {
 
 const createUser = async (req, res) => {
   try {
-    //Create encrypted password
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
-
-    //Create user
-    User.create({
-      name: req.body.name,
-      email: req.body.email,
-      password: hashedPassword,
-      roleId: req.body.roleId,
-    });
-
     return res.status(201).json({ msg: "User created successfully!" });
   } catch (err) {
     return res
@@ -41,7 +32,10 @@ const createUser = async (req, res) => {
 //POST method to register an admin
 exports.registerAdmin = async (req, res) => {
   //Handle errors coming from createUser validator
-  handleErrors(req, res);
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     //Check if an admin already exists
     const adminExists = await User.findOne({
@@ -56,25 +50,37 @@ exports.registerAdmin = async (req, res) => {
     //Assign roleId to req.body
     req.body.roleId = roleConstants.ADMIN;
 
-    await createUser(req, res);
+    //Create encrypted password
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+    //Create user
+    User.create({
+      name: req.body.name,
+      email: req.body.email,
+      password: hashedPassword,
+      roleId: req.body.roleId,
+    });
+
+    return httpResponses.createdResponse(res, "Admin");
   } catch (err) {
     console.log(err);
-    httpResponses.serverError(res)
+    httpResponses.serverError(res);
   }
 };
 
 //POST method to login all types of users
 exports.login = async (req, res) => {
-  //Handle errors coming from the login validator
-  handleErrors(req, res);
+  //Handle errors coming from the login validators
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     //Check if user with given email already exists
-    const userExists = await ifUserExists(req.body.email);
-    console.log(userExists);
+    const userExists = await User.findOne({ where: { email: req.body.email } });
     if (!userExists) {
-      return res.status(404).json({
-        err: "User with given email does not exists. Check credentials again!",
-      });
+      return httpResponses.notFoundError(res, responseObj);
     }
 
     //Compare the passwords
@@ -91,7 +97,7 @@ exports.login = async (req, res) => {
     }
 
     //Create jwt
-    const payload = { userId: user.dataValues.userId };
+    const payload = { userId: userExists.dataValues.userId };
     const bearerToken = await jwt.sign(
       payload,
       process.env.ACCESS_TOKEN_SECRET,
@@ -101,9 +107,9 @@ exports.login = async (req, res) => {
     );
 
     return res.status(200).json({
-      msg: `Welcome back ${user.dataValues.name}! You are now logged in.`,
+      msg: `Welcome back ${userExists.dataValues.name}! You are now logged in.`,
       token: bearerToken,
-      roleId: user.dataValues.roleId,
+      roleId: userExists.dataValues.roleId,
     });
   } catch (err) {
     console.log(err);
@@ -114,16 +120,32 @@ exports.login = async (req, res) => {
 //POST method to create a user by admin
 exports.createUser = async (req, res) => {
   //Handle errors coming from the create user validator
-  handleErrors(req, res);
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   try {
     //Check if user with given email already exists
-    if (await ifUserExists(req.body.email)) {
-      return res.status(403).json({
-        err: "User with given email already exists! Check the entered email or log in.",
-      });
+    const existingUser = await User.findOne({
+      where: { email: req.body.email },
+    });
+    if (existingUser) {
+      return httpResponses.existsError(res, responseObj);
     }
 
-    await createUser(req, res);
+    //Create encrypted password
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+    //Create user
+    await User.create({
+      name: req.body.name,
+      email: req.body.email,
+      password: hashedPassword,
+      roleId: req.body.roleId,
+    });
+
+    return httpResponses.createdResponse(res, responseObj);
   } catch (err) {
     console.log(err);
     httpResponses.serverError(res);
@@ -146,16 +168,18 @@ exports.getAllUsers = async (req, res) => {
 //GET method to get details of user with given id
 exports.getSingleUser = async (req, res) => {
   try {
-    if (!(await ifUserExists(req.body.userId))) {
-      httpResponses.notFoundError(res, "User")
+    const existingUser = await User.findOne({
+      where: { userId: req.params.id },
+    });
+
+    if (!existingUser) {
+      httpResponses.notFoundError(res, "User");
     }
 
-    const userData = await User.findAll(
-      { where: { userId: req.params.userId } },
-      {
-        attributes: ["userId", "name", "email", "roleId"],
-      }
-    );
+    const userData = await User.findAll({
+      where: { userId: req.params.id },
+      attributes: { exclude: ["password"] },
+    });
     return res.status(200).json({ userData });
   } catch (err) {
     console.log(err);
@@ -166,19 +190,40 @@ exports.getSingleUser = async (req, res) => {
 //PUT method to update a user by admin with given id
 exports.updateUser = async (req, res) => {
   //Handle errors coming from the create user validator
-  handleErrors(req, res);
+  // const errors = validationResult(req);
+  // if (!errors.isEmpty()) {
+  //   return res.status(400).json({ errors: errors.array() });
+  // }
   try {
     const { name, email, password, roleId } = req.body;
 
-    if (!(await ifUserExists(req.body.userId))) {
+    const existingUser = await User.findOne({
+      where: { userId: req.params.id },
+    });
+
+    //If user with given id doesn't exist
+    if (!existingUser) {
       httpResponses.notFoundError(res, "User");
     }
 
+    //If user with given email already exists
+    const userWithEmail = await User.findOne({ where: { email } });
+    if (userWithEmail) {
+      return res
+        .status(400)
+        .json({ err: "This email is already in use. Try another one!" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     //Update the user
-    await User.update(
-      { name, email, password, roleId },
-      { where: { userId: req.params.userId } }
-    );
+    await existingUser.update({
+      name,
+      email,
+      password: hashedPassword,
+      roleId,
+    });
+    return httpResponses.updatedResponse(res, responseObj);
   } catch (err) {
     console.log(err);
     httpResponses.serverError(res);
@@ -188,17 +233,19 @@ exports.updateUser = async (req, res) => {
 //DELETE method to delete a user by admin with given userId
 exports.deleteUser = async (req, res) => {
   try {
+    const existingUser = await User.findOne({
+      where: { userId: req.params.id },
+    });
+
     //Check if user with given userId exists
-    if (!(await ifUserExists(req.params.userId))) {
-      httpResponses.notFoundError(res, "User")
+    if (!existingUser) {
+      httpResponses.notFoundError(res, "User");
     }
 
     //Delete the user
-    await User.destroy({ where: { userId: req.params.userId } });
+    await existingUser.destroy();
 
-    return res
-      .status(200)
-      .json({ msg: "User with given userId deleted successfully!" });
+    return httpResponses.deletedResponse(res, responseObj);
   } catch (err) {
     console.log(err);
     httpResponses.serverError(res);
