@@ -161,7 +161,7 @@ exports.getAllUsers = async (req, res) => {
     return res.status(200).json({ userData });
   } catch (err) {
     console.log(err);
-    httpResponses.serverError(res);
+    return httpResponses.serverError(res);
   }
 };
 
@@ -183,7 +183,7 @@ exports.getSingleUser = async (req, res) => {
     return res.status(200).json({ userData });
   } catch (err) {
     console.log(err);
-    httpResponses.serverError(res);
+    return httpResponses.serverError(res);
   }
 };
 
@@ -226,7 +226,7 @@ exports.updateUser = async (req, res) => {
     return httpResponses.updatedResponse(res, responseObj);
   } catch (err) {
     console.log(err);
-    httpResponses.serverError(res);
+    return httpResponses.serverError(res);
   }
 };
 
@@ -248,6 +248,6 @@ exports.deleteUser = async (req, res) => {
     return httpResponses.deletedResponse(res, responseObj);
   } catch (err) {
     console.log(err);
-    httpResponses.serverError(res);
+    return httpResponses.serverError(res);
   }
 };

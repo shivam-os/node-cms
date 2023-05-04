@@ -14,7 +14,7 @@ module.exports = (passport) => {
       try {
         const existingUser = await User.findOne({
           where: { userId: jwt_payload.userId },
-          attributes: ["userId"],
+          attributes: ["userId", "roleId"],
         });
 
         //If user exists, then attach user to req object otherwise return error
