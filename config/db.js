@@ -9,6 +9,7 @@ const sequelize = new Sequelize(
   {
     dialect: "mysql",
     host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
   }
 );
 
@@ -64,7 +65,7 @@ const createRoles = async () => {
       //Create super role
       await db.role.create({ name: "admin" });
       //Create default category
-      await db.category.create({name: "uncategorized"})
+      await db.category.create({ name: "uncategorized" });
     }
   } catch (err) {
     console.log("Error in inserting the data into role table", err);
