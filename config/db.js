@@ -63,6 +63,8 @@ const createRoles = async () => {
       await db.role.create({ name: "editor" });
       //Create super role
       await db.role.create({ name: "admin" });
+      //Create default category
+      await db.category.create({name: "uncategorized"})
     }
   } catch (err) {
     console.log("Error in inserting the data into role table", err);

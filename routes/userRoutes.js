@@ -16,20 +16,27 @@ router.post("/login", userValidator.login, userController.login);
 
 //-------------------Protected Routes------------------
 
-//Only allowed logged in admin
-router.use(
-  passport.authenticate("jwt", { session: false }),
-  verifyRoles([roleConstants.ADMIN])
-);
+//POST request to generate new access tokens
+router.post("/refresh", userController.refresh);
 
-//POST request to create a user by admin
-router.post("/", userValidator.createUser, userController.createUser);
+//Only allow logged in users
+router.use(passport.authenticate("jwt", { session: false }));
+
+//POST request to logout the logged in user
+router.post("/logout", userController.logout);
+
+//------------------Only allowed for admin-------------
+
+router.use(verifyRoles([roleConstants.ADMIN]));
 
 //GET request to return all the users
 router.get("/", userController.getAllUsers);
 
 //GET request to get details of a single user
 router.get("/:id", userController.getSingleUser);
+
+//POST request to create a user by admin
+router.post("/", userValidator.createUser, userController.createUser);
 
 //PUT request to update a user with given userId
 router.put("/:id", userValidator.createUser, userController.updateUser);

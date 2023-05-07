@@ -1,46 +1,57 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { validationResult } = require("express-validator");
-const handleErrors = require("../utils/validators/handleErrors");
 const User = require("../config/db").user;
+const Post = require("../config/db").post;
 const roleConstants = require("../utils/roleConstants");
 const httpResponses = require("../utils/httpResponses");
+const cookieExtractor = require("../utils/verifyCookie");
 const responseObj = "User";
-
-const ifUserExists = async (field) => {
-  try {
-    userExists = await User.findOne({ where: { field } });
-    if (userExists) {
-      return userExists;
-    }
-  } catch (err) {
-    console.log(err);
-  }
-  return null;
+const refreshTokenValidity = 15 * 24 * 60 * 60 * 1000; //In milliseconds
+const accessTokenValidity = "15m"; //15 minutes
+const refreshTokenOptions = {
+  expires: new Date(Date.now() + refreshTokenValidity),
+  httpOnly: true,
 };
 
-const createUser = async (req, res) => {
-  try {
-    return res.status(201).json({ msg: "User created successfully!" });
-  } catch (err) {
-    return res
-      .status(500)
-      .json({ err: "User could not be created. Please try again!" });
-  }
+const createUser = async (req) => {
+  const { name, email, password, roleId } = req.body;
+
+  //Create encrypted password
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  //Create user
+  await User.create({
+    name,
+    email,
+    password: hashedPassword,
+    roleId,
+  });
+};
+
+//Create jwt for user with given userId
+const generateJwt = async (userId, secret, expiryTime) => {
+  const payload = { userId };
+
+  const token = await jwt.sign(payload, secret, {
+    expiresIn: `${expiryTime}`,
+  });
+
+  return token;
 };
 
 //POST method to register an admin
 exports.registerAdmin = async (req, res) => {
-  //Handle errors coming from createUser validator
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+  //Handle validation errors
+  if (httpResponses.validationError(req, res)) {
+    return;
   }
+
   try {
-    //Check if an admin already exists
     const adminExists = await User.findOne({
       where: { roleId: roleConstants.ADMIN },
     });
+
+    //If an admin already exists
     if (adminExists) {
       return res
         .status(403)
@@ -50,44 +61,35 @@ exports.registerAdmin = async (req, res) => {
     //Assign roleId to req.body
     req.body.roleId = roleConstants.ADMIN;
 
-    //Create encrypted password
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
-
     //Create user
-    User.create({
-      name: req.body.name,
-      email: req.body.email,
-      password: hashedPassword,
-      roleId: req.body.roleId,
-    });
+    await createUser(req);
 
     return httpResponses.createdResponse(res, "Admin");
   } catch (err) {
     console.log(err);
-    httpResponses.serverError(res);
+    return httpResponses.serverError(res);
   }
 };
 
 //POST method to login all types of users
 exports.login = async (req, res) => {
-  //Handle errors coming from the login validators
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+  //Handle validation errors
+  if (httpResponses.validationError(req, res)) {
+    return;
   }
 
   try {
-    //Check if user with given email already exists
     const userExists = await User.findOne({ where: { email: req.body.email } });
+
+    //If user with given email doesn't exist
     if (!userExists) {
       return httpResponses.notFoundError(res, responseObj);
     }
 
+    const { userId, password, roleId } = userExists.dataValues;
+
     //Compare the passwords
-    const passwordMatched = await bcrypt.compare(
-      req.body.password,
-      userExists.dataValues.password
-    );
+    const passwordMatched = await bcrypt.compare(req.body.password, password);
 
     //If password does not match
     if (!passwordMatched) {
@@ -96,59 +98,58 @@ exports.login = async (req, res) => {
         .json({ err: "Incorrect email or password! Please try again." });
     }
 
-    //Create jwt
-    const payload = { userId: userExists.dataValues.userId };
-    const bearerToken = await jwt.sign(
-      payload,
+    //Get access token
+    const accessToken = await generateJwt(
+      userId,
       process.env.ACCESS_TOKEN_SECRET,
-      {
-        expiresIn: "3h",
-      }
+      accessTokenValidity
     );
 
-    return res.status(200).json({
-      msg: `Welcome back ${userExists.dataValues.name}! You are now logged in.`,
-      token: bearerToken,
-      roleId: userExists.dataValues.roleId,
-    });
+    //Get refresh token
+    const refreshToken = await generateJwt(
+      userId,
+      process.env.REFRESH_TOKEN_SECRET,
+      refreshTokenValidity
+    );
+
+    return res
+      .status(200)
+      .cookie("token", refreshToken, refreshTokenOptions)
+      .json({
+        msg: `Welcome back ${userExists.dataValues.name}! You are now logged in.`,
+        token: accessToken,
+        roleId,
+      });
   } catch (err) {
     console.log(err);
-    httpResponses.serverError(res);
+    return httpResponses.serverError(res);
   }
 };
 
 //POST method to create a user by admin
 exports.createUser = async (req, res) => {
-  //Handle errors coming from the create user validator
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+  //Handle validation errors
+  if (httpResponses.validationError(req, res)) {
+    return;
   }
 
   try {
-    //Check if user with given email already exists
     const existingUser = await User.findOne({
       where: { email: req.body.email },
     });
+
+    //If user with given email already exists
     if (existingUser) {
       return httpResponses.existsError(res, responseObj);
     }
 
-    //Create encrypted password
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
-
-    //Create user
-    await User.create({
-      name: req.body.name,
-      email: req.body.email,
-      password: hashedPassword,
-      roleId: req.body.roleId,
-    });
+    //Create User
+    await createUser(req);
 
     return httpResponses.createdResponse(res, responseObj);
   } catch (err) {
     console.log(err);
-    httpResponses.serverError(res);
+    return httpResponses.serverError(res);
   }
 };
 
@@ -189,13 +190,13 @@ exports.getSingleUser = async (req, res) => {
 
 //PUT method to update a user by admin with given id
 exports.updateUser = async (req, res) => {
-  //Handle errors coming from the create user validator
-  // const errors = validationResult(req);
-  // if (!errors.isEmpty()) {
-  //   return res.status(400).json({ errors: errors.array() });
-  // }
+  //Handle validation errors
+  if (httpResponses.validationError(req, res)) {
+    return;
+  }
+
   try {
-    const { name, email, password, roleId } = req.body;
+    const { name, password, roleId } = req.body;
 
     const existingUser = await User.findOne({
       where: { userId: req.params.id },
@@ -203,23 +204,15 @@ exports.updateUser = async (req, res) => {
 
     //If user with given id doesn't exist
     if (!existingUser) {
-      httpResponses.notFoundError(res, "User");
+      return httpResponses.notFoundError(res, "User");
     }
 
-    //If user with given email already exists
-    const userWithEmail = await User.findOne({ where: { email } });
-    if (userWithEmail) {
-      return res
-        .status(400)
-        .json({ err: "This email is already in use. Try another one!" });
-    }
-
+    //Create encrypted password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     //Update the user
     await existingUser.update({
       name,
-      email,
       password: hashedPassword,
       roleId,
     });
@@ -237,17 +230,57 @@ exports.deleteUser = async (req, res) => {
       where: { userId: req.params.id },
     });
 
-    //Check if user with given userId exists
+    //If user with given userId doesn't exist
     if (!existingUser) {
       httpResponses.notFoundError(res, "User");
     }
 
-    //Delete the user
-    await existingUser.destroy();
+    //Update the userId of posts to the admin's userId
+    await Post.update({ userId: 1 }, { where: { userId: req.params.id } });
 
+    await existingUser.destroy();
     return httpResponses.deletedResponse(res, responseObj);
   } catch (err) {
     console.log(err);
     return httpResponses.serverError(res);
   }
+};
+
+//POST method to generate refresh token
+exports.refresh = async (req, res) => {
+  try {
+    const refreshToken = cookieExtractor(req);
+
+    //If no refresh token
+    if (!refreshToken) {
+      return res
+        .status(401)
+        .json({ err: "You are currently logged out. Log in to continue!" });
+    }
+
+    //Verify the refresh token from cookie
+    jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+      async (err, user) => {
+        if (err) {
+          return res.status(401).json({ err: "Invalid token." });
+        }
+
+        const accessToken = await generateAccessToken(user.userId);
+        return res.status(200).json({ accessToken });
+      }
+    );
+  } catch (err) {
+    console.log(err);
+    return httpResponses.serverError(res);
+  }
+};
+
+//POST method to logout the existing user
+exports.logout = (req, res) => {
+  return res
+    .status(201)
+    .clearCookie("token", req.cookies.token, refreshTokenOptions)
+    .json({ msg: `Now you are logged out! We hope to see you soon.` });
 };

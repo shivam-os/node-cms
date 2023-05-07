@@ -1,19 +1,8 @@
-const handleErrors = require("../utils/validators/handleErrors");
 const Category = require("../config/db").category;
 const Post = require("../config/db").post;
 const User = require("../config/db").user;
 const httpResponses = require("../utils/httpResponses");
 const responseObj = "Category";
-
-const checkCategory = async (name) => {
-  try {
-    const categoryExists = await Category.findOne({ where: { name: name } });
-    return categoryExists;
-  } catch (err) {
-    console.log(err);
-  }
-  return undefined;
-};
 
 //GET method to return all the categories
 exports.getAllCategories = async (req, res) => {
@@ -24,9 +13,8 @@ exports.getAllCategories = async (req, res) => {
 
     return res.status(200).json({ categories });
   } catch (err) {
-    res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    return httpResponses.serverError(res);
   }
 };
 
@@ -75,13 +63,16 @@ exports.getCategoryPosts = async (req, res) => {
 
 //POST method to create a category by the admin
 exports.createCategory = async (req, res) => {
-  //Handle errors coming from the category validator
-  handleErrors(req, res);
+  //Handle validation errors
+  if (httpResponses.validationError(req, res)) {
+    return;
+  }
+
   try {
     const { name } = req.body;
 
     //If category with given name already exists
-    if (await checkCategory(name)) {
+    if (await Category.findOne({ where: { name } })) {
       return httpResponses.existsError(res, responseObj);
     }
 
@@ -95,8 +86,11 @@ exports.createCategory = async (req, res) => {
 
 //PUT method to update a category by admin with given id
 exports.updateCategory = async (req, res) => {
-  //Handle errors coming from the create category validator
-  handleErrors(req, res);
+  //Handle validation errors
+  if (httpResponses.validationError(req, res)) {
+    return;
+  }
+
   try {
     const existingCategory = await Category.findOne({
       where: { categoryId: req.params.id },
@@ -131,6 +125,12 @@ exports.deleteCategory = async (req, res) => {
     if (!existingCategory) {
       return httpResponses.notFoundError(res, responseObj);
     }
+
+    //Change the category id to default one
+    await Post.update(
+      { categoryId: 1 },
+      { where: { categoryId: req.params.id } }
+    );
 
     await existingCategory.destroy();
     return httpResponses.deletedResponse(res, responseObj);

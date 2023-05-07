@@ -1,10 +1,8 @@
-const { validationResult } = require("express-validator");
-const db = require("../config/db");
-const Post = db.post;
-const Category = db.category;
-const User = db.user;
-const handleErrors = require("../utils/validators/handleErrors");
+const Post = require("../config/db").post;
+const Category = require("../config/db").category;
+const User = require("../config/db").user;
 const httpResponses = require("../utils/httpResponses");
+const roleConstants = require("../utils/roleConstants");
 const responseObj = "Post";
 
 //GET method to get all the posts
@@ -52,10 +50,11 @@ exports.getSinglePost = async (req, res) => {
 //GET method to return all posts from a category with given name
 exports.getCategoryPosts = async (req, res) => {
   try {
-    //Check if category exists
     const existingCategory = await Category.findOne({
       where: { name: req.params.id },
     });
+
+    //If category with given id doesn't exist
     if (!existingCategory) {
       return httpResponses.notFoundError(res, "Category");
     }
@@ -71,18 +70,16 @@ exports.getCategoryPosts = async (req, res) => {
 
     return res.status(200).json({ posts: categoryPosts });
   } catch (err) {
-    res
-      .status(500)
-      .json({ err: "Something has went wrong. Please try again later." });
+    console.log(err);
+    return httpResponses.serverError(res);
   }
 };
 
 //POST method to create a post
 exports.createPost = async (req, res) => {
-  //Handle errors coming from the create post validator
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+  //Handle validation errors
+  if (httpResponses.validationError(req, res)) {
+    return;
   }
 
   try {
@@ -94,6 +91,7 @@ exports.createPost = async (req, res) => {
       content,
       categoryId,
     });
+
     return httpResponses.createdResponse(res, responseObj);
   } catch (err) {
     console.log(err);
@@ -103,10 +101,9 @@ exports.createPost = async (req, res) => {
 
 //PUT method to update a post with given id
 exports.updatePost = async (req, res) => {
-  //Handle errors coming from the create post validator
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+  //Handle validation errors
+  if (httpResponses.validationError(req, res)) {
+    return;
   }
 
   try {
@@ -121,8 +118,15 @@ exports.updatePost = async (req, res) => {
       return httpResponses.notFoundError(res, responseObj);
     }
 
+    //If post's userId is same as the current user (if it's an author)
+    if (
+      req.user.dataValues.roleId === roleConstants.AUTHOR &&
+      req.user.dataValues.userId !== existingPost.userId
+    ) {
+      return httpResponses.forbiddenError(res);
+    }
+
     await existingPost.update({
-      userId: req.user.dataValues.userId,
       title,
       content,
       categoryId,
@@ -145,6 +149,14 @@ exports.deletePost = async (req, res) => {
     //If post doesn't exist
     if (!existingPost) {
       return httpResponses.notFoundError(res, responseObj);
+    }
+
+    //If post's userId is same as the current user (if it's an author)
+    if (
+      req.user.dataValues.roleId === roleConstants.AUTHOR &&
+      req.user.dataValues.userId !== existingPost.userId
+    ) {
+      return httpResponses.forbiddenError(res);
     }
 
     await existingPost.destroy();

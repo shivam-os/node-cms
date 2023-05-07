@@ -1,3 +1,5 @@
+const httpResponses = require("../utils/httpResponses");
+
 module.exports = (allowedRoles) => {
   return (req, res, next) => {
     const { roleId } = req.user.dataValues;
@@ -6,9 +8,7 @@ module.exports = (allowedRoles) => {
     if (allowedRoles.includes(roleId)) {
       next();
     } else {
-      return res
-        .status(401)
-        .json({ err: "You are not allowed to view this page!" });
+      return httpResponses.forbiddenError(res);
     }
   };
 };

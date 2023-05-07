@@ -1,3 +1,5 @@
+const { validationResult } = require("express-validator");
+
 //CREATE (POST) object - 201
 exports.createdResponse = (res, object) => {
   res.status(201).json({ msg: `${object} created successfully!` });
@@ -19,6 +21,14 @@ exports.deletedResponse = (res, object) => {
 
 //---------------------------- Errors ----------------------------------
 
+//Handle validation errors - 400
+exports.validationError = (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+};
+
 //Already exists error - 400
 exports.existsError = (res, object) => {
   res
@@ -26,13 +36,16 @@ exports.existsError = (res, object) => {
     .json({ err: `${object} already exists. Recheck and try again!` });
 };
 
+//Action not allowed error - 403
+exports.forbiddenError = (res) => {
+  res.status(403).json({ err: "You are not allowed to perform this action!" });
+};
+
 //Not found error - 404
 exports.notFoundError = (res, object) => {
-  res
-    .status(404)
-    .json({
-      err: `${object} with given id does not exist. Recheck and try again!`,
-    });
+  res.status(404).json({
+    err: `${object} with given id does not exist. Recheck and try again!`,
+  });
 };
 
 //Internal server error - 500

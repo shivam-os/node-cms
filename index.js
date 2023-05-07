@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const morgan = require("morgan");
+const cookieParser = require("cookie-parser")
 const passport = require("passport");
 require("./config/passport")(passport);
 const userRoutes = require("./routes/userRoutes");
@@ -13,6 +14,7 @@ const PORT = 3003;
 //Required Middlewares
 app.use(express.json());
 app.use(morgan("dev"));
+app.use(cookieParser())
 app.use(cors());
 
 //App routes

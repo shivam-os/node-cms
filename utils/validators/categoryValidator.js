@@ -7,9 +7,9 @@ exports.createCategory = [
     .not()
     .isEmpty()
     .withMessage("Name field cannot be empty!")
-    .isLength({ min: 3, max: 100 })
+    .isLength({ min: 3, max: 50 })
     .withMessage(
-      "Name field must contain minimum 3 letters and maximum 100 letters!"
+      "Name field must contain minimum 3 letters and maximum 50 letters!"
     )
     .isAlpha("en-US", { ignore: " " })
     .withMessage(
