@@ -102,7 +102,7 @@ exports.updateCategory = async (req, res) => {
     }
 
     //If category name already exists
-    if (await checkCategory(req.body.name)) {
+    if (await Category.findOne({ where: { name: req.body.name } })) {
       return httpResponses.existsError(res, responseObj);
     }
 
@@ -120,6 +120,11 @@ exports.deleteCategory = async (req, res) => {
     const existingCategory = await Category.findOne({
       where: { categoryId: req.params.id },
     });
+
+    //If category is uncategorized
+    if (req.params.id === "1") {
+      return httpResponses.forbiddenError(res);
+    }
 
     //If category with given id doesn't exist
     if (!existingCategory) {

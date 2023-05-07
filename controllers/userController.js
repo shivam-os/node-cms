@@ -230,9 +230,14 @@ exports.deleteUser = async (req, res) => {
       where: { userId: req.params.id },
     });
 
+    //If user is admin
+    if (req.params.id === "1") {
+      return httpResponses.forbiddenError(res);
+    }
+
     //If user with given userId doesn't exist
     if (!existingUser) {
-      httpResponses.notFoundError(res, "User");
+      return httpResponses.notFoundError(res, "User");
     }
 
     //Update the userId of posts to the admin's userId
@@ -267,7 +272,11 @@ exports.refresh = async (req, res) => {
           return res.status(401).json({ err: "Invalid token." });
         }
 
-        const accessToken = await generateAccessToken(user.userId);
+        const accessToken = await generateJwt(
+          user.userId,
+          process.env.ACCESS_TOKEN_SECRET,
+          accessTokenValidity
+        );
         return res.status(200).json({ accessToken });
       }
     );

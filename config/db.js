@@ -9,7 +9,6 @@ const sequelize = new Sequelize(
   {
     dialect: "mysql",
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
   }
 );
 
@@ -56,7 +55,6 @@ const createRoles = async () => {
   try {
     //Count the role ids
     const roleCount = await db.role.count();
-    console.log("count", roleCount);
 
     if (roleCount === 0) {
       await db.role.create({ name: "author" });
